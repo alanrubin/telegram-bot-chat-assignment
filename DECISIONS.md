@@ -298,6 +298,31 @@ for this scope.
 
 ---
 
+## D11 — Testing strategy: **layered, deterministic, no external dependencies**
+
+I test each layer where its risk concentrates, and keep everything deterministic — no real
+Telegram and no network — so the suite is fast and reproducible.
+
+- **Backend (pytest, Telegram mocked):** unit tests for the single-chat invariant
+  (claim/reject/override/reset + the concurrency lock) and the message store (ordering,
+  fan-out, dead-client pruning), plus integration tests of the WebSocket bridge via FastAPI's
+  `TestClient` (connect → status + history, send → forward + broadcast, error frames,
+  multi-client fan-out). This is where the hard logic lives, so it gets the most coverage.
+- **Frontend (Vitest + React Testing Library):** the `useChatSocket` hook against a mocked
+  `WebSocket` (frame handling, `sendMessage` gating, reconnect) and `App` rendering/gating —
+  including a regression guard that incoming vs outgoing messages render distinctly.
+- **End-to-end (Playwright, WebSocket mocked in-browser):** one smoke that drives the real UI
+  through connect → incoming → send → outgoing, using `page.routeWebSocket` so it needs no
+  backend and no Telegram. Deterministic and dependency-free.
+
+**Out of scope (a documented follow-up, not built):** a full-stack e2e against
+`docker compose` with a real Telegram round-trip. Telegram is an external dependency that
+can't be driven deterministically in CI without standing up a fake Bot API server; the cost
+and flakiness aren't justified for this assignment, and the mocked-WebSocket e2e already
+exercises the full client flow.
+
+---
+
 ## Cross-cutting: state management, concurrency & message ordering
 
 Because every message — incoming and outgoing — funnels through a single `broadcast()` call

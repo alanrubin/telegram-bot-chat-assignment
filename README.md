@@ -170,8 +170,8 @@ in dev and production.
 
 ## 5. Running the tests
 
-Backend tests cover the single-chat rule, message routing/ordering, and the WebSocket bridge.
-Telegram is mocked, so **no token or network is needed**.
+**Backend** — single-chat rule, message routing/ordering, and the WebSocket bridge. Telegram
+is mocked, so **no token or network is needed**:
 
 ```bash
 cd backend
@@ -179,8 +179,25 @@ source venv/bin/activate               # if not already active
 pytest                                 # 22 tests
 ```
 
-(Frontend tests are intentionally out of scope — the logic and risk live in the backend; see
-DECISIONS.md.)
+**Frontend** — the `useChatSocket` hook (with a mocked WebSocket) and `App` rendering/gating,
+via Vitest + React Testing Library:
+
+```bash
+cd frontend
+npm test                               # 12 tests
+```
+
+**End-to-end** — a Playwright smoke that drives the UI with the WebSocket mocked in-browser
+(no backend or Telegram needed). Install the browser once, then run:
+
+```bash
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+```
+
+See [DECISIONS.md](DECISIONS.md) (D11) for the testing strategy and what is intentionally out
+of scope.
 
 ---
 
