@@ -34,6 +34,9 @@ venv/
 env/
 ENV/
 
+# pyenv local version pin (developer-local; Docker/README define the canonical version)
+.python-version
+
 # Python tooling
 .pytest_cache/
 .mypy_cache/
