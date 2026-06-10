@@ -1,5 +1,14 @@
 # Senior Full-Stack Developer – Home Assignment
 
+> **📐 Project documentation for reviewers**
+> - **[ARCHITECTURE.md](ARCHITECTURE.md)** — how the system is built: components, the
+>   message data-flow, the single-chat rule, the WebSocket contract, and the module layout.
+> - **[DECISIONS.md](DECISIONS.md)** — the key engineering decisions and trade-offs (transport,
+>   Telegram integration, single-chat enforcement, error handling, resilience, and more), with
+>   the alternatives considered and why each choice was made.
+>
+> Start with `ARCHITECTURE.md` for the big picture, then `DECISIONS.md` for the reasoning.
+
 ## Overview
 
 This assignment simulates a simplified real-world system that displays a web-based interface of a chat between a Telegram bot and a remote participant.
