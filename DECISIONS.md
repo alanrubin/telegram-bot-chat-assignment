@@ -274,6 +274,30 @@ chokepoint. Clear names and this document carry the rest.
 
 ---
 
+## D10 — Frontend language: **TypeScript**
+
+**Options I considered**
+
+- **TypeScript** — typed React.
+  - ✅ The frontend's main risk is drifting from the backend's WebSocket message contract.
+    TypeScript lets me model the server frames as a discriminated union that mirrors the
+    backend pydantic schemas, so the compiler catches shape mismatches and makes the
+    `switch` over frame types exhaustive. Vite transpiles TS with no extra build tooling, and
+    a `tsc --noEmit` step in the build enforces types.
+  - ➖ A little config (a `tsconfig.json`) and hand-written types to maintain.
+- **Plain JavaScript** — what the scaffold shipped.
+  - ✅ Zero config; the README only asks for React.js.
+  - ➖ No compile-time guarantee that client and server agree on the message shape; easier to
+    let the contract drift silently.
+
+**My choice: TypeScript.** At this size the cost is tiny and the payoff is a type-safe message
+contract end-to-end — the client's frame types mirror the server's pydantic models, which is
+exactly where a bug would otherwise hide. I kept the types hand-written to match the backend;
+auto-generating them from the OpenAPI/JSON schema was considered and judged over-engineering
+for this scope.
+
+---
+
 ## Cross-cutting: state management, concurrency & message ordering
 
 Because every message — incoming and outgoing — funnels through a single `broadcast()` call

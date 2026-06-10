@@ -28,9 +28,47 @@ body {
 
 /* Header */
 .chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 16px;
   border-bottom: 1px solid #ddd;
   background: #f9fafb;
+}
+
+.chat-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+/* Connection status */
+.chat-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #555;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #bbb;
+  flex: none;
+}
+
+.status-dot.online {
+  background: #34c759;
+}
+
+.status-dot.idle {
+  background: #f5a623;
+}
+
+.status-dot.offline {
+  background: #c0c0c0;
 }
 
 /* Messages area */
@@ -121,6 +159,26 @@ body {
   cursor: pointer;
 }
 
-.chat-input button:hover {
+.chat-input button:hover:not(:disabled) {
   background: #3a78d8;
+}
+
+/* Disabled states (no active chat / disconnected) */
+.chat-input input:disabled {
+  background: #f4f4f4;
+  cursor: not-allowed;
+}
+
+.chat-input button:disabled {
+  background: #b9c9e6;
+  cursor: not-allowed;
+}
+
+/* Transient error notice */
+.chat-error {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #b3261e;
+  background: #fdeded;
+  border-top: 1px solid #f5c2c0;
 }

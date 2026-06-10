@@ -8,7 +8,7 @@ reasoning behind each choice lives in [`DECISIONS.md`](DECISIONS.md).
 
 | Component | Tech | Responsibility |
 |-----------|------|----------------|
-| Frontend | React 18 + Vite | Chat UI: render incoming/outgoing messages, send input, show connection status. |
+| Frontend | React 18 + TypeScript + Vite | Chat UI: render incoming/outgoing messages, send input, show connection status. |
 | Backend | FastAPI (Python) | Owns the Telegram bot, enforces the single-chat rule, bridges messages to/from browsers over WebSocket. |
 | Telegram bot | python-telegram-bot (long-polling) | Receives messages from the participant and delivers outgoing messages. |
 
@@ -90,8 +90,8 @@ backend/
 
 frontend/
   src/
-    App.jsx             # chat UI
-    hooks/useChatSocket.js  # WebSocket lifecycle: connect, parse frames, reconnect, send
+    App.tsx             # chat UI
+    hooks/useChatSocket.ts  # WebSocket lifecycle + typed frame contract (mirrors backend)
     index.css           # styling (incoming/outgoing bubbles, status, input)
 
 docker-compose.yml      # backend + frontend (nginx) on one origin
