@@ -1,0 +1,19 @@
+# One-command local setup: a backend (FastAPI + bot) and a frontend (nginx) on one origin.
+# The frontend's nginx reverse-proxies /ws to the backend, so only port 8080 is published.
+services:
+  backend:
+    build: ./backend
+    # Provide TELEGRAM_BOT_TOKEN (and optional overrides) — copy backend/.env.example first.
+    env_file:
+      - ./backend/.env
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
