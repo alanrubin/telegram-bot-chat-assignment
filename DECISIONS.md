@@ -133,6 +133,16 @@ that is a platform-level consideration, separate from the transport choice made 
 class of CORS and WebSocket-origin friction, and the result resembles how I would actually
 ship a frontend. The extra Dockerfile complexity is small and worth it.
 
+**Security note (origin validation).** Single-origin serving fixes the *legitimate* client,
+but it does not by itself stop a *malicious* cross-origin page: WebSockets are exempt from the
+browser same-origin policy and the CORS middleware only guards HTTP, so a hostile page could
+otherwise open `/ws` and read history or send messages (cross-site WebSocket hijacking). The
+`/ws` handshake therefore explicitly validates the `Origin` header against `CORS_ORIGINS` and
+refuses a present-but-disallowed origin (a missing origin is a non-browser client, not a CSWSH
+vector). The companion `POST /session/reset` is gated behind the `SESSION_RESET_TOKEN` shared
+secret, and inbound message frames are length-capped (4096 chars, Telegram's own limit) to
+bound per-message memory.
+
 ---
 
 ## D5 — Echo model: **server-authoritative**

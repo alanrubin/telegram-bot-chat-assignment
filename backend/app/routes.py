@@ -12,10 +12,12 @@ the client.
 """
 
 import logging
+import secrets
 
-from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
+from app.config import get_settings
 from app.schemas import ErrorFrame, SendCommand, StatusFrame
 from app.telegram_service import NoActiveChatError
 
@@ -30,11 +32,41 @@ async def health():
 
 
 @router.post("/session/reset")
-async def reset_session(request: Request):
-    """Unbind the current participant so a new chat can claim the slot."""
+async def reset_session(
+    request: Request, x_reset_token: str | None = Header(default=None)
+):
+    """Unbind the current participant so a new chat can claim the slot.
+
+    State-changing and otherwise unauthenticated, so it is gated behind a shared secret: the
+    ``X-Reset-Token`` header must match ``SESSION_RESET_TOKEN``. When no token is configured
+    the endpoint is disabled. Requiring a custom header also blocks cross-site CSRF (it can't
+    be sent cross-origin without a CORS preflight the origin allowlist rejects), and the token
+    itself stops anyone who can reach the port from hijacking the session via reset.
+    """
+    expected = get_settings().session_reset_token
+    if not expected:
+        raise HTTPException(status_code=403, detail="Session reset is disabled.")
+    if x_reset_token is None or not secrets.compare_digest(x_reset_token, expected):
+        raise HTTPException(status_code=403, detail="Invalid or missing reset token.")
+
     await request.app.state.session.reset()
     await request.app.state.manager.broadcast_status(connected=True, active_chat=False)
     return {"status": "reset"}
+
+
+def _origin_allowed(websocket: WebSocket) -> bool:
+    """Reject cross-site WebSocket handshakes (CSWSH).
+
+    The CORS middleware only guards HTTP requests, and WebSockets are exempt from the browser
+    same-origin policy, so without this check any cross-origin page could open ``/ws``, read
+    the full history, and send messages to the bound chat. A browser always sends an ``Origin``
+    header on the handshake, so a present-but-disallowed origin is a cross-origin page and is
+    refused. A missing origin is a non-browser client (tests/CLI), which is not a CSWSH vector.
+    """
+    origin = websocket.headers.get("origin")
+    if origin is None:
+        return True
+    return origin in get_settings().cors_origins_list
 
 
 @router.websocket("/ws")
@@ -42,6 +74,11 @@ async def websocket_endpoint(websocket: WebSocket):
     manager = websocket.app.state.manager
     session = websocket.app.state.session
     telegram = websocket.app.state.telegram
+
+    if not _origin_allowed(websocket):
+        logger.warning("Rejected WebSocket handshake from origin %s", websocket.headers.get("origin"))
+        await websocket.close(code=1008)  # policy violation
+        return
 
     await websocket.accept()
     await manager.connect(websocket)

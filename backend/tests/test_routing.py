@@ -176,3 +176,63 @@ def test_ws_broadcast_reaches_all_clients(client):
 
     assert f1["message"]["text"] == "yo"
     assert f2["message"]["text"] == "yo"
+
+
+# --- Security hardening: origin check, message size cap, reset token --------------------
+
+def test_ws_overlong_text_returns_error(client):
+    """A frame above the size cap is rejected as malformed and never reaches Telegram."""
+    from app.main import app
+
+    app.state.session._active_chat_id = 111
+
+    with client.websocket_connect("/ws") as ws:
+        ws.receive_text()  # status
+        ws.receive_text()  # history
+        ws.send_text(json.dumps({"type": "send", "text": "x" * 5000}))
+        frame = json.loads(ws.receive_text())
+
+    assert frame["type"] == "error"
+    app.state.telegram._bot.send_message.assert_not_awaited()
+
+
+def test_ws_rejects_disallowed_origin(client):
+    """A cross-origin browser handshake (CSWSH) is refused before accept."""
+    from starlette.websockets import WebSocketDisconnect
+
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws", headers={"origin": "http://evil.example"}):
+            pass
+
+
+def test_ws_allows_configured_origin(client):
+    """An allowlisted origin connects normally."""
+    with client.websocket_connect(
+        "/ws", headers={"origin": "http://localhost:5173"}
+    ) as ws:
+        status = json.loads(ws.receive_text())
+
+    assert status["type"] == "status"
+
+
+def test_reset_disabled_without_token(client):
+    """With no SESSION_RESET_TOKEN configured the endpoint is disabled."""
+    resp = client.post("/session/reset")
+    assert resp.status_code == 403
+
+
+def test_reset_requires_valid_token(client, monkeypatch):
+    """When a token is configured, only a matching X-Reset-Token succeeds."""
+    import app.routes as routes
+    from app.config import Settings
+
+    test_settings = Settings(telegram_bot_token="t", session_reset_token="s3cret")
+    monkeypatch.setattr(routes, "get_settings", lambda: test_settings)
+
+    assert client.post("/session/reset").status_code == 403
+    assert (
+        client.post("/session/reset", headers={"X-Reset-Token": "wrong"}).status_code
+        == 403
+    )
+    ok = client.post("/session/reset", headers={"X-Reset-Token": "s3cret"})
+    assert ok.status_code == 200 and ok.json()["status"] == "reset"

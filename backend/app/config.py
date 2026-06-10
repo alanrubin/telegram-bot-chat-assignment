@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     # Logging verbosity for the app (INFO/WARNING/ERROR/DEBUG).
     log_level: str = "INFO"
 
+    # Optional shared secret required to call POST /session/reset. When unset, the reset
+    # endpoint is disabled entirely (it is an optional extension, see D2). Requiring a custom
+    # header also defeats cross-site CSRF: a browser cannot send a custom header cross-origin
+    # without a CORS preflight, which the origin allowlist rejects.
+    session_reset_token: str | None = None
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse ``cors_origins`` into a clean list of origins."""

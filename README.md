@@ -110,8 +110,9 @@ cp .env.example .env
 ```
 
 Optional settings (sensible defaults apply if unset): `TELEGRAM_ALLOWED_CHAT_ID` (pin a
-specific chat as the only allowed participant), `CORS_ORIGINS`, `LOG_LEVEL`. See
-`backend/.env.example`.
+specific chat as the only allowed participant), `CORS_ORIGINS`, `LOG_LEVEL`, and
+`SESSION_RESET_TOKEN` (shared secret required to call `POST /session/reset`; when unset the
+reset endpoint is disabled). See `backend/.env.example`.
 
 ---
 

@@ -9,9 +9,14 @@ consumes. Datetimes serialize to ISO-8601 via pydantic's JSON encoding.
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 Direction = Literal["incoming", "outgoing"]
+
+# Telegram rejects single text messages longer than 4096 characters, so a longer frame could
+# never be delivered anyway. Capping it here bounds per-message memory and stops an
+# unauthenticated client from flooding the in-memory store with oversized payloads.
+MAX_MESSAGE_LENGTH = 4096
 
 
 class Message(BaseModel):
@@ -35,7 +40,7 @@ class SendCommand(BaseModel):
     """An outgoing message typed by the user in the web UI."""
 
     type: Literal["send"]
-    text: str
+    text: str = Field(max_length=MAX_MESSAGE_LENGTH)
 
 
 # --- Server -> client frames ---
