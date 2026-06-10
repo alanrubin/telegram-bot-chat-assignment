@@ -1,0 +1,126 @@
+/* Page background */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #eef1f4;
+}
+
+/* Centering */
+.chat-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* Chat shell */
+.chat-container {
+  width: 100%;
+  max-width: 480px;
+  height: 640px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+/* Header */
+.chat-header {
+  padding: 16px;
+  border-bottom: 1px solid #ddd;
+  background: #f9fafb;
+}
+
+/* Messages area */
+.chat-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #f4f6f8;
+}
+
+/* Message wrapper */
+.chat-message {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+/* Incoming / outgoing alignment */
+.chat-message.incoming {
+  justify-content: flex-start;
+}
+
+.chat-message.outgoing {
+  justify-content: flex-end;
+}
+
+/* Bubble */
+.chat-bubble {
+  max-width: 75%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  position: relative;
+}
+
+/* Colors */
+.chat-message.incoming .chat-bubble {
+  background: #ffffff;
+  border: 1px solid #ddd;
+}
+
+.chat-message.outgoing .chat-bubble {
+  background: #d1e7ff;
+}
+
+/* Text */
+.chat-text {
+  white-space: pre-wrap;
+}
+
+/* Timestamp */
+.chat-timestamp {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #666;
+  text-align: right;
+}
+
+/* Input */
+.chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #ddd;
+  background: #fff;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.chat-input input:focus {
+  outline: none;
+  border-color: #4c8bf5;
+}
+
+.chat-input button {
+  padding: 0 16px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: none;
+  background: #4c8bf5;
+  color: white;
+  cursor: pointer;
+}
+
+.chat-input button:hover {
+  background: #3a78d8;
+}
