@@ -218,6 +218,24 @@ outage, the in-memory history is lost and a reconnecting client sees an empty/pa
 session. Persistence (a database) would remove this, but the README explicitly allows
 session-only, possibly-inconsistent state, so I kept persistence out of scope.
 
+**WebSocket lifecycle hardening.** The reconnect logic has to be robust to a socket being
+torn down and recreated — both from genuine network drops and from React 18 StrictMode, which
+double-invokes effects (mount → cleanup → mount) in development. A naive "intentional close"
+flag is unsafe here, because a socket's `close` event fires asynchronously: the first socket's
+`onclose` can run *after* the remount, and a shared flag would have been reset by then,
+spawning a second live connection that duplicates every message. I guard against this on two
+levels:
+
+- **A stale socket can never reconnect.** On cleanup the socket's handlers are detached before
+  it is closed, and `onclose` ignores any socket that is no longer the current one
+  (`socketRef.current !== socket`). So only one live connection exists at a time.
+- **Rendering is idempotent by message id.** Appending a `message` is a no-op if a message
+  with that id is already present, so even a double-delivery cannot render twice.
+
+(In development this churn also surfaced a harmless `EPIPE` warning from the Vite dev proxy —
+writing to a backend socket that had just closed; the single-socket invariant quiets it.
+Production serves the build through nginx, not the Vite proxy.)
+
 ---
 
 ## D8 — Error-handling philosophy: **fail fast on config, isolate per-event, surface to the UI**

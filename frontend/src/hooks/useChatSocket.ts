@@ -54,7 +54,6 @@ export function useChatSocket(): ChatSocket {
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptsRef = useRef(0);
-  const intentionalCloseRef = useRef(false);
 
   const connect = useCallback(() => {
     const socket = new WebSocket(buildWsUrl());
@@ -77,7 +76,10 @@ export function useChatSocket(): ChatSocket {
           setMessages(frame.messages ?? []);
           break;
         case "message":
-          setMessages((prev) => [...prev, frame.message]);
+          // Idempotent by server-assigned id: a double-delivery can't render twice.
+          setMessages((prev) =>
+            prev.some((m) => m.id === frame.message.id) ? prev : [...prev, frame.message]
+          );
           break;
         case "status":
           setActiveChat(Boolean(frame.activeChat));
@@ -91,9 +93,11 @@ export function useChatSocket(): ChatSocket {
     };
 
     socket.onclose = () => {
+      // Ignore closes from a socket that has already been replaced (StrictMode remount or
+      // overlapping reconnects), so a stale socket can never spawn a second connection.
+      if (socketRef.current !== socket) return;
       setConnected(false);
       setActiveChat(false);
-      if (intentionalCloseRef.current) return;
       // Reconnect with capped exponential backoff.
       const delay = Math.min(
         RECONNECT_BASE_MS * 2 ** attemptsRef.current,
@@ -109,12 +113,16 @@ export function useChatSocket(): ChatSocket {
   }, []);
 
   useEffect(() => {
-    intentionalCloseRef.current = false;
     connect();
     return () => {
-      intentionalCloseRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      socketRef.current?.close();
+      const socket = socketRef.current;
+      if (socket) {
+        // Detach handlers before closing so this socket's (async) close cannot trigger a
+        // reconnect or state update after it has been torn down or replaced.
+        socket.onopen = socket.onmessage = socket.onerror = socket.onclose = null;
+        socket.close();
+      }
     };
   }, [connect]);
 

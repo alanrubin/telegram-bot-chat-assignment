@@ -1,3 +1,4 @@
+import { StrictMode, createElement, type ReactNode } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useChatSocket } from "./useChatSocket";
@@ -134,5 +135,36 @@ describe("useChatSocket", () => {
 
     expect(FakeWebSocket.instances.length).toBe(before + 1);
     unmount();
+  });
+
+  it("does not render a message twice if it is delivered twice (idempotent by id)", () => {
+    const { result } = renderHook(() => useChatSocket());
+    act(() => latest().simulateOpen());
+    const frame = {
+      type: "message",
+      message: { id: 7, text: "once", timestamp: "t", direction: "incoming", sender: "X" },
+    };
+    act(() => latest().simulateMessage(frame));
+    act(() => latest().simulateMessage(frame)); // duplicate delivery
+    expect(result.current.messages).toHaveLength(1);
+  });
+
+  it("does not spawn a second connection when a replaced socket closes late (StrictMode)", () => {
+    // StrictMode double-invokes effects (mount -> cleanup -> mount), reproducing the race
+    // that previously left two live sockets and duplicated every message.
+    vi.useFakeTimers();
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(StrictMode, null, children);
+    renderHook(() => useChatSocket(), { wrapper });
+
+    // instances[0] was created then cleaned up; instances[1] is the live socket.
+    expect(FakeWebSocket.instances.length).toBe(2);
+    const replaced = FakeWebSocket.instances[0];
+
+    // The replaced socket closing must NOT trigger a reconnect.
+    act(() => replaced.onclose?.());
+    act(() => vi.advanceTimersByTime(5000));
+
+    expect(FakeWebSocket.instances.length).toBe(2);
   });
 });
