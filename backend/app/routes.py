@@ -18,7 +18,7 @@ from fastapi import APIRouter, Header, HTTPException, Request, WebSocket, WebSoc
 from pydantic import ValidationError
 
 from app.config import get_settings
-from app.schemas import ErrorFrame, SendCommand, StatusFrame
+from app.schemas import ErrorFrame, SendCommand
 from app.telegram_service import NoActiveChatError
 
 logger = logging.getLogger("app.routes")
@@ -50,6 +50,9 @@ async def reset_session(
         raise HTTPException(status_code=403, detail="Invalid or missing reset token.")
 
     await request.app.state.session.reset()
+    # Clear the previous participant's conversation so a new chat starts a clean session
+    # (and connected clients see an empty history), then mark no active chat.
+    await request.app.state.manager.reset_history()
     await request.app.state.manager.broadcast_status(connected=True, active_chat=False)
     return {"status": "reset"}
 
@@ -81,13 +84,9 @@ async def websocket_endpoint(websocket: WebSocket):
         return
 
     await websocket.accept()
-    await manager.connect(websocket)
     try:
-        # Initial sync: current status, then the full session history.
-        await websocket.send_text(
-            StatusFrame(connected=True, activeChat=session.has_active_chat).model_dump_json()
-        )
-        await manager.send_history(websocket)
+        # Register + send initial status and history atomically (no message can interleave).
+        await manager.connect_and_sync(websocket, active_chat=session.has_active_chat)
 
         while True:
             raw = await websocket.receive_text()

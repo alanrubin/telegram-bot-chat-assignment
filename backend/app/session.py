@@ -13,6 +13,15 @@ not enforce this (any user can message the bot), so it is a policy implemented h
 """
 
 import asyncio
+from enum import Enum
+
+
+class ClaimResult(Enum):
+    """Outcome of a claim attempt, decided atomically under the lock."""
+
+    CLAIMED = "claimed"  # this chat just became the active participant (a new binding)
+    ALREADY_ACTIVE = "already_active"  # this chat already held the slot
+    REJECTED = "rejected"  # another chat holds the slot, or a different chat is pinned
 
 
 class ChatSession:
@@ -31,20 +40,27 @@ class ChatSession:
     def has_active_chat(self) -> bool:
         return self._active_chat_id is not None
 
-    async def claim(self, chat_id: int) -> bool:
+    async def claim(self, chat_id: int) -> ClaimResult:
         """Bind ``chat_id`` as the active participant if allowed.
 
-        Returns True if ``chat_id`` is (now) the active chat, False if it is rejected
-        because another chat already holds the slot or a different chat is pinned.
+        Returns CLAIMED if this call newly bound the chat, ALREADY_ACTIVE if it was already
+        the active chat, or REJECTED if another chat holds the slot / a different chat is
+        pinned. The new-binding signal is computed under the same lock that mutates the
+        state, so callers never have to read ``has_active_chat`` separately (which would be a
+        race).
         """
         async with self._lock:
             # A configured pin overrides everything: only the allowed chat may bind.
             if self._allowed_chat_id is not None and chat_id != self._allowed_chat_id:
-                return False
+                return ClaimResult.REJECTED
             if self._active_chat_id is None:
                 self._active_chat_id = chat_id
-                return True
-            return self._active_chat_id == chat_id
+                return ClaimResult.CLAIMED
+            return (
+                ClaimResult.ALREADY_ACTIVE
+                if self._active_chat_id == chat_id
+                else ClaimResult.REJECTED
+            )
 
     def is_active(self, chat_id: int) -> bool:
         """True if ``chat_id`` is the currently bound chat."""

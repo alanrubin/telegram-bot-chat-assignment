@@ -79,3 +79,45 @@ async def test_send_history_replays_full_session(
     frame = json.loads(client.received[0])
     assert frame["type"] == "history"
     assert [m["text"] for m in frame["messages"]] == ["one", "two"]
+
+
+async def test_connect_and_sync_sends_status_then_history_then_registers(
+    manager: ConnectionManager, new_client, ts
+):
+    # Seed some history so the snapshot is non-trivial.
+    await manager.record_and_broadcast(
+        text="earlier", direction="incoming", sender="Alan", timestamp=ts(0)
+    )
+
+    client = new_client()
+    await manager.connect_and_sync(client, active_chat=True)
+
+    status = json.loads(client.received[0])
+    history = json.loads(client.received[1])
+    assert status["type"] == "status" and status["activeChat"] is True
+    assert history["type"] == "history" and [m["text"] for m in history["messages"]] == ["earlier"]
+
+    # The client is now registered, so a subsequent broadcast reaches it exactly once.
+    await manager.record_and_broadcast(
+        text="later", direction="incoming", sender="Alan", timestamp=ts(1)
+    )
+    frames = [json.loads(p) for p in client.received]
+    message_texts = [f["message"]["text"] for f in frames if f["type"] == "message"]
+    assert message_texts == ["later"]
+
+
+async def test_reset_history_clears_store_and_pushes_empty_history(
+    manager: ConnectionManager, store: MessageStore, new_client, ts
+):
+    client = new_client()
+    await manager.connect(client)
+    await manager.record_and_broadcast(
+        text="old", direction="incoming", sender="Alan", timestamp=ts(0)
+    )
+
+    await manager.reset_history()
+
+    assert len(store) == 0
+    # The client received an empty history frame so its UI clears too.
+    last = json.loads(client.received[-1])
+    assert last["type"] == "history" and last["messages"] == []
