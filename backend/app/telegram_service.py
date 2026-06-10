@@ -110,7 +110,12 @@ class TelegramService:
 
     async def _claim_or_reject(self, chat_id: int) -> bool:
         """Bind the chat if allowed; otherwise reply once with a rejection and drop it."""
+        was_active = self._session.has_active_chat
         if await self._session.claim(chat_id):
+            # On the first bind, tell connected web clients so they can enable sending.
+            if not was_active:
+                logger.info("Chat %s claimed the active session slot", chat_id)
+                await self._manager.broadcast_status(connected=True, active_chat=True)
             return True
         logger.warning("Rejected message from non-active chat %s", chat_id)
         await self._reply(chat_id, REJECTION_TEXT)

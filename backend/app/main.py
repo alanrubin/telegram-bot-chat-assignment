@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.routes import router
 from app.session import ChatSession
 from app.store import ConnectionManager, MessageStore
 from app.telegram_service import TelegramService
@@ -59,7 +60,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+app.include_router(router)

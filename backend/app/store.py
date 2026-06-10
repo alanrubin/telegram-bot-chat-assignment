@@ -17,7 +17,7 @@ import asyncio
 from datetime import datetime
 from typing import Protocol
 
-from app.schemas import Direction, HistoryFrame, Message, MessageFrame
+from app.schemas import Direction, HistoryFrame, Message, MessageFrame, StatusFrame
 
 
 class Client(Protocol):
@@ -85,6 +85,13 @@ class ConnectionManager:
     async def send_history(self, client: Client) -> None:
         """Send the full session history to a single (usually freshly-connected) client."""
         await client.send_text(HistoryFrame(messages=self._store.messages).model_dump_json())
+
+    async def broadcast_status(self, *, connected: bool, active_chat: bool) -> None:
+        """Tell all clients whether a Telegram participant is bound (enables/disables sending)."""
+        async with self._lock:
+            await self._fan_out(
+                StatusFrame(connected=connected, activeChat=active_chat).model_dump_json()
+            )
 
     async def _fan_out(self, payload: str) -> None:
         """Send a payload to every client, pruning any whose send fails (dead sockets)."""

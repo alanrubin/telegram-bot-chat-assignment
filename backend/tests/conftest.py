@@ -7,7 +7,12 @@ Helpers (timestamp factory, fake clients) are exposed as fixtures so test module
 them via dependency injection without importing from this file.
 """
 
+import os
 from datetime import datetime, timedelta, timezone
+
+# Provide a dummy token before anything imports app.main (which loads settings at import
+# time). Real tests never hit Telegram — the bot lifecycle and bot are mocked.
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-token")
 
 import pytest
 
